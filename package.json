@@ -1,0 +1,13 @@
+{
+  "name": "codex-gateway-pool",
+  "version": "1.2.0",
+  "private": false,
+  "description": "Standalone Codex Gateway Pool with admin key management and master-key rotation",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js dev",
+    "stop": "powershell -ExecutionPolicy Bypass -File .\\scripts\\stop.ps1"
+  },
+  "license": "MIT"
+}
