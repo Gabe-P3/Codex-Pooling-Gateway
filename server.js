@@ -704,6 +704,8 @@ function normalizeReasoningMode(rawMode, fallback = 'normal') {
   return fallback;
 }
 
+const DEFAULT_REASONING_MODE = normalizeReasoningMode(settings.defaultReasoningMode || 'normal', 'normal');
+
 function modeToReasoningEffort(modeId) {
   const hit = REASONING_MODES.find((m) => m.id === modeId);
   return String((hit && hit.modelReasoningEffort) || 'medium');
@@ -916,7 +918,7 @@ function buildChatCompletionPayload(output, options = {}) {
       completion_tokens: completionTokens,
       total_tokens: promptTokens + completionTokens,
     },
-    reasoning_mode: String(options.reasoningMode || 'normal'),
+    reasoning_mode: String(options.reasoningMode || DEFAULT_REASONING_MODE),
   };
 }
 
@@ -978,10 +980,10 @@ function runCodexChatForUser(user, messages, options = {}) {
 
   const maxOutputTokens = clamp(toInt(options.maxOutputTokens, 512), 1, 8192);
   const requestedModel = String(options.model || '').trim();
+  const reasoningMode = normalizeReasoningMode(options.reasoningMode || DEFAULT_REASONING_MODE, DEFAULT_REASONING_MODE);
   const selectedModel = isValidModel(requestedModel)
     ? requestedModel
-    : (normalizeReasoningMode(options.reasoningMode, 'normal') === 'fast' ? pickFastModel() : pickDefaultModel());
-  const reasoningMode = normalizeReasoningMode(options.reasoningMode || 'normal', 'normal');
+    : (reasoningMode === 'fast' ? pickFastModel() : pickDefaultModel());
   const reasoningEffort = modeToReasoningEffort(reasoningMode);
   const prompt = `${buildPromptFromMessages(normalized)}\n\nLimit your final response to at most ${maxOutputTokens} tokens.`;
   const timeoutMs = clamp(toInt(options.timeoutMs, OPENAI_CODEX_TIMEOUT_MS), 5_000, 10 * 60 * 1000);
@@ -1684,8 +1686,8 @@ async function handleOpenAiPortalApi(req, res, url) {
         writeJson(res, 400, { ok: false, error: 'Username must be 2-32 chars: letters, numbers, ., _, -' });
         return;
       }
-      if (password.length < 8 || password.length > 128) {
-        writeJson(res, 400, { ok: false, error: 'Password must be between 8 and 128 characters' });
+      if (!password.length) {
+        writeJson(res, 400, { ok: false, error: 'Password is required' });
         return;
       }
 
@@ -1945,7 +1947,10 @@ async function handleOpenAiPortalApi(req, res, url) {
         return;
       }
 
-      const reasoningMode = normalizeReasoningMode(body.reasoning_mode || body.reasoningMode || body.effort || body.reasoning_effort || 'normal', 'normal');
+      const reasoningMode = normalizeReasoningMode(
+        body.reasoning_mode || body.reasoningMode || body.effort || body.reasoning_effort || DEFAULT_REASONING_MODE,
+        DEFAULT_REASONING_MODE,
+      );
       const model = requestedModel || (reasoningMode === 'fast' ? pickFastModel() : pickDefaultModel());
       const maxOutputTokens = clamp(toInt(body.max_output_tokens != null ? body.max_output_tokens : body.max_tokens, 512), 1, 8192);
       const timeoutMs = clamp(toInt(body.timeoutMs, OPENAI_CODEX_TIMEOUT_MS), 5_000, 10 * 60 * 1000);
